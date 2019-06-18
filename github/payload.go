@@ -1,6 +1,9 @@
 package github
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // CheckRunPayload contains the information for GitHub's check_run hook event
 type CheckRunPayload struct {
@@ -1454,10 +1457,10 @@ type InstallationPayload struct {
 			PullRequests       string `json:"pull_requests"`
 			RepositoryProjects string `json:"repository_projects"`
 		} `json:"permissions"`
-		Events         []string `json:"events"`
-		CreatedAt      int64    `json:"created_at"`
-		UpdatedAt      int64    `json:"updated_at"`
-		SingleFileName *string  `json:"single_file_name"`
+		Events         []string        `json:"events"`
+		CreatedAt      GithubTimestamp `json:"created_at"`
+		UpdatedAt      GithubTimestamp `json:"updated_at"`
+		SingleFileName *string         `json:"single_file_name"`
 	} `json:"installation"`
 	Repositories []struct {
 		ID       int64  `json:"id"`
@@ -1531,10 +1534,10 @@ type InstallationRepositoriesPayload struct {
 			Deployments         string `json:"deployments"`
 			Contents            string `json:"contents"`
 		} `json:"permissions"`
-		Events         []string `json:"events"`
-		CreatedAt      int64    `json:"created_at"`
-		UpdatedAt      int64    `json:"updated_at"`
-		SingleFileName *string  `json:"single_file_name"`
+		Events         []string        `json:"events"`
+		CreatedAt      GithubTimestamp `json:"created_at"`
+		UpdatedAt      GithubTimestamp `json:"updated_at"`
+		SingleFileName *string         `json:"single_file_name"`
 	} `json:"installation"`
 	RepositoriesAdded []struct {
 		ID       int64  `json:"id"`
@@ -6110,4 +6113,36 @@ type Label struct {
 	Name    string `json:"name"`
 	Color   string `json:"color"`
 	Default bool   `json:"default"`
+}
+
+// GithubTimestamp enables parsing of time values which are either a int containing unix seconds since epoch
+// or a standard datestamp
+type GithubTimestamp int64
+
+// UnmarshalJSON unmarshal by picking the best option for type
+func (i *GithubTimestamp) UnmarshalJSON(b []byte) error {
+	var temp interface{}
+
+	if err := json.Unmarshal(b, &temp); err != nil {
+		return err
+	}
+
+	switch v := temp.(type) {
+	case float64:
+		*i = GithubTimestamp(time.Unix(int64(v), 0).Unix())
+	case string:
+		ic, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			return err
+		}
+		*i = GithubTimestamp(ic.Unix())
+
+	}
+
+	return nil
+}
+
+// Int64 return the github timestamp as a int64
+func (i GithubTimestamp) Int64() int64 {
+	return int64(i)
 }
